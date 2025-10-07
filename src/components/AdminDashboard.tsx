@@ -13,7 +13,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css"
 import { Management } from './adminComponents/Management';
 import { useUserContext } from '../context/userContext';
-import { status, markets, COLORS } from '../db/db';
+import { status, markets, COLORS, territoryMap } from '../db/db';
 import {
   fetchCases,
   fetchUsers,
@@ -32,7 +32,9 @@ import {
   handleUserTypeChange,
   timeSince,
   handleLocationChange,
-  handleJobTypeChange
+  handleJobTypeChange,
+  handleInspectionChange,
+  handleLocationChangeCases
 } from '../hooks/oeDashboardFunctions';
 import Queue from './adminComponents/Queue';
 import AdminCases from './adminComponents/AdminCases';
@@ -42,7 +44,7 @@ import AdminHeader from './adminComponents/AdminHeader';
 
 
 export function AdminDashboard() {
-
+  
   const [isOpen, setIsOpen] = useState(false);
   const toggleDropdown = () => setIsOpen(!isOpen);
   //const [cases, setCases] = useState<Case[]>([]);
@@ -115,6 +117,7 @@ export function AdminDashboard() {
   
 
   useEffect(() => {
+   
     function handleClickOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setShowOptions(false);
@@ -279,6 +282,7 @@ export function AdminDashboard() {
         setUserType(data.user_type);
         setUserLocation(data.location);
         console.log('user_location:', data.location);
+        console.log('user_type:', data.user_type);
       }
     };
 
@@ -315,9 +319,12 @@ export function AdminDashboard() {
   };
 
 
-  const filteredMarkets = markets.filter((market) =>
-    market.name.toLowerCase().includes(searchText)
-  );
+ // Filtrar por territorio y búsqueda
+  const filteredMarkets = markets.filter((m) => {
+    const territory = territoryMap[m.name];
+    const matchesSearch = m.name.toLowerCase().includes(search.toLowerCase());
+    return territory === userLocation && matchesSearch;
+  });
 
   return (
 
@@ -348,6 +355,7 @@ export function AdminDashboard() {
           userLocation={userLocation}
           setUserLocation={setUserLocation}
           handleLocationChange={handleLocationChange}
+          location={userLocation}
         />
       </div>
 
@@ -385,7 +393,7 @@ export function AdminDashboard() {
               />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <form onSubmit={(e) => assignCase(e, title, location, market, caseInfo, workOrder, selectedUser, setTitle, setSelectedUser, filteredUsers, fetchData, setErrorMessage, currentUser, userType, installDate, setInstallDate, setSearch, toast, jobtype)} className="space-y-4 rounded-lg shadow-md p-4">
+              <form onSubmit={(e) => assignCase(e, title, location, market, caseInfo, workOrder, selectedUser, setTitle, setSelectedUser, filteredUsers, fetchData, setErrorMessage, currentUser, userType, installDate, setInstallDate, setSearch, toast, jobtype, userLocation)} className="space-y-4 rounded-lg shadow-md p-4">
                 <div>
                   <label className="block text-gray-700 text-sm font-bold mb-2">
                     Title
@@ -416,6 +424,7 @@ export function AdminDashboard() {
                           setShowOptions(true);
                         }}
                         className="flex-grow outline-none"
+                        required
                       />
                       <FaChevronDown className="ml-2 text-gray-500" />
                     </div>
@@ -468,7 +477,7 @@ export function AdminDashboard() {
                       onChange={(e) => setJobType(e.target.value)}
                       required
                     >
-                      <option value="">Select Job Type</option>
+                      <option value="">Job Type</option>
                       <option value="OE">OE</option>
                       <option value="OEM">OEM</option>
                     </select>
@@ -489,7 +498,7 @@ export function AdminDashboard() {
                   >
                     <option value="">Auto Glass Assign</option>
                     {filteredUsers
-                      .filter(user => user.availability === 'ON_SITE')
+                      .filter(user => user.availability === 'ON_SITE' && user.location === userLocation) // Filtrar por disponibilidad y ubicación
                       .slice()
                       .sort((a, b) => {
                         const numA = parseInt(a.username.replace(/\D/g, ""), 10);
@@ -607,6 +616,7 @@ export function AdminDashboard() {
             userLocation={userLocation}
             setUserLocation={setUserLocation}
             handleLocationChange={handleLocationChange}
+            location={userLocation}
             />
 
           {/* Cases Section */}
@@ -622,7 +632,7 @@ export function AdminDashboard() {
               csrFilter={csrFilter}
               setStatusFilter={setStatusFilter}
               statusFilter={statusFilter}
-              setMarketFilter={SetMarketFilter}
+              SetMarketFilter={SetMarketFilter}
               marketFilter={marketFilter}
               setInstallDateFilter={setInstallDateFilter}
               installDateFilter={installDateFilter}
@@ -660,6 +670,8 @@ export function AdminDashboard() {
               setInstallDates={setInstallDates}
               updateCaseStatus={updateCaseStatus}
               handleJobTypeChange={handleJobTypeChange}
+              handleInspectionChange={handleInspectionChange}
+              handleLocationChangeCases={handleLocationChangeCases}
             />
 
             
@@ -725,6 +737,7 @@ export function AdminDashboard() {
         fetchData={fetchData}
         removedCase={removedCase}
         timeSince={timeSince}  
+        handleLocationChangeCases={handleLocationChangeCases}
       />
 
     </div>

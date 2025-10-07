@@ -134,11 +134,16 @@ export function LoginForm() {
 // Fin Update
       
       if (user.is_admin) {
+        
       navigate('/oeadmin' );
       //setUserType(user.user_type);
+      
 
     } else {
+      
       navigate('/oedashboard');
+            
+
     }
       
     } catch (err) {

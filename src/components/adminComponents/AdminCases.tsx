@@ -8,7 +8,8 @@ import { parseISO } from 'date-fns'
 
 
 
-export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal,setCases,fetchData,filteredUsers,setErrorMessage,currentUserName,userType,toast,status,setSelectedCaseId,removedCase, statusFilter, users, llave, handleInstallDateChange, setInstallDates, updateCaseStatus, handleJobTypeChange }) {
+
+export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal,setCases,fetchData,filteredUsers,setErrorMessage,currentUserName,userType,toast,status,setSelectedCaseId,removedCase, statusFilter, users, llave, handleInstallDateChange, setInstallDates, updateCaseStatus, handleJobTypeChange, handleInspectionChange, handleLocationChangeCases }) {
   return (
     <>
 
@@ -26,13 +27,14 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Install date</th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
                     <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tags</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {cases
 
                     .filter((case_) => statusFilter === 'DELETED' ? case_.status === 'DELETED' : case_.status !== 'WAITING_ASSIGNMENT' && case_.status !== 'DELETED')
-                    .slice(0, 400)
+                    .slice(0, 150)
                     .map((case_) => {
 
                       // Implementar colores de fila según el estado
@@ -62,17 +64,16 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
 
                           <td className="px-1 py-2 text-sm items-center gap-2">
                             {case_.scheduled_by || 'N/A'} {/* Mostrar el nombre de usuario que asignó el caso */}
-
-                            <br />                                          {/* === Tag de tipo de caso === */}
+                              <br />
                             <button
-                              onClick={() => handleJobTypeChange(case_.case_type === 'OE' ? 'OEM' : 'OE', case_.id)}
-                              className={`px-2 py-0.2 rounded-md text-[10px] font-bold ${case_.case_type === "OEM"
-                                ? "bg-blue-600 text-white"
-                                : "bg-green-600 text-white"
-                                }`}
-                            >
-                              {case_.case_type}
-                            </button>
+                                  onClick={() => handleJobTypeChange(case_.case_type === 'OE' ? 'OEM' : 'OE', case_.id)}
+                                  className={`px-2 py-0.3 rounded-md text-[10px] font-bold ${case_.case_type === "OEM"
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-green-600 text-white"
+                                    }`}
+                                >
+                                  {case_.case_type}
+                                </button>
                           </td>
 
                           <td className="px-3 py-2 text-black whitespace-nowrap text-sm flex items-center gap-2">
@@ -128,7 +129,7 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                               ))}
                             </select>
                           </td>
-                          <td className="px-3 py-2 whitespace-nowrap text-sm">
+                          <td className="px-5 py-2 text-gray-800 text-xs">
                             {new Date(case_.created_at).toLocaleString('en-US', {
                               year: 'numeric',
                               month: 'short',
@@ -180,7 +181,7 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                             </button>
                           </td>
 
-                          {statusFilter !== 'DELETED' ? <td className="px-3 py-2 whitespace-nowrap text-sm">
+                          {statusFilter !== 'DELETED' ? <td className="px-6 py-2 whitespace-nowrap text-sm">
                             <button
                               onClick={() => removedCase(case_.id, fetchData, 'DELETED')}
                               className="bg-red-600 hover:bg-red-400 text-white p-1 rounded-full transition"
@@ -198,6 +199,39 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                               </button>
                             </td>
                           }
+
+                          <td className=''>
+                                
+
+                                {case_.inspection ? (
+  // ✅ Cuando es inspection
+                                  <button
+                                    onClick={() => handleInspectionChange(case_.id, case_.inspection, fetchData)}
+                                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-600 text-white"
+                                  >
+                                    Inspection
+                                  </button>
+                                ) : (
+                                  // ⬜ Cuando NO es inspection → espacio vacío pero clickeable
+                                  <div
+                                    onClick={() => handleInspectionChange(case_.id, case_.inspection, fetchData)}
+                                    className="w-[80px] h-[20px] flex items-center justify-center cursor-pointer hover:bg-gray-100/10 rounded-md transition"
+                                    title="Agregar inspection"
+                                  >
+                                    {/* intencionalmente vacío, solo fondo al hover */}
+                                  </div>
+                                )} 
+                                <br />
+                                <button
+                onClick={() => handleLocationChangeCases(case_?.location === 'SOUTH' ? 'NORTH' : 'SOUTH', case_.id)}
+                className={`px-2 py-0.5 text-xs font-semibold rounded text-white ${case_?.location === 'SOUTH' ? 'bg-purple-500' : 'bg-green-500'}`}
+              >
+            {case_?.location === 'SOUTH' ? 'SOUTH' : 'NORTH'}
+        </button>
+
+
+
+                          </td>
 
                         </tr>
                       );

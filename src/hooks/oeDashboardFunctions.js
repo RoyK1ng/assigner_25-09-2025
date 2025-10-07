@@ -55,6 +55,23 @@ export const handleUserTypeChange = async (newType, currentUserName, setUserType
     }
   };
 
+  export const handleLocationChangeCases = async (newLocation, currentCaseId) => {
+    
+
+    const { error } = await supabase
+      .from('cases')
+      .update({ location: newLocation })
+      .eq('id', currentCaseId);
+
+    if (error) {
+      console.error('Error updating user type:', error.message);
+    } else {
+      setUserLocation(newLocation);
+      window.location.reload();
+    }
+  };
+
+
   export const handleJobTypeChange = async (newType, currentJobId) => {
     
 
@@ -69,6 +86,23 @@ export const handleUserTypeChange = async (newType, currentUserName, setUserType
       
     }
   };
+
+  export const handleInspectionChange = async (caseId, currentValue, fetchData) => {
+  try {
+    const { error } = await supabase
+      .from("cases")
+      .update({ inspection: !currentValue }) // toggle
+      .eq("id", caseId);
+
+    if (error) {
+      console.error("Error updating inspection:", error.message);
+    } else {
+      fetchData(); // refresca lista
+    }
+  } catch (err) {
+    console.error("Unhandled error in handleInspectionChange:", err);
+  }
+};
 
 
   //fetch cases with filters
@@ -193,92 +227,72 @@ export const fetchUsers = async (setUsers, userType) => {
     const { data: usersData } = await supabase
       .from('users')
       .select('*')
-      .eq('is_admin', false)
+      .eq('is_admin', false);
 
-
-      
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    //const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    //const firstDayNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-
-    const { data: dailyCasesData } = await supabase
-        .from('cases')
-        .select('*')
-        .gte('created_at', today.toISOString())
-        .lt('created_at', tomorrow.toISOString())
-        .not('status', 'eq', 'KICK BACK')
-        .not('status', 'eq', 'VOID')
-        .not('status', 'eq', 'DUPLICATED')
-        .not('status', 'eq', 'DELETED')
-        .not('status', 'eq', 'DENIED')
-        .not('status', 'eq', 'NOT IN SLACK')
-        .not('status', 'eq', 'NOT IN GB')
-        .not('status', 'eq', 'NO REPLY')
-        .not('status', 'eq', 'INSPECTION')
-        .not('status', 'eq', 'OEM JOB')
-        .not('status', 'eq', 'NOT REFERRAL')
-        .not('status', 'eq', '3 DAYS OUT')
-        
-{/*
-    const { data: monthlyCasesData } = await supabase
+    // Casos construidos/aprobados/oe cost
+    const { data: dailyBuiltCases } = await supabase
       .from('cases')
       .select('*')
-      .gte('created_at', firstDayOfMonth.toISOString())
-      .lt('created_at', firstDayNextMonth.toISOString())
-      .not('status', 'in', '("KICK BACK", "VOID", "DUPLICATED", "DELETED", "PENDING", "DENIED", "NOT IN SLACK", "NOT IN GB", "NO REPLY")')
-      .eq('case_type', userType);   */}
+      .gte('completed_at', today.toISOString())
+      .lt('completed_at', tomorrow.toISOString())
+      .in('status', ['BUILT', 'APPROVED', 'OE COST']);
 
-    if (usersData && dailyCasesData ) {
-      const dailyCaseCounts = {};
-      //const monthlyCaseCounts = {};
+    // Casos pendientes
+    const { data: dailyPendingCases } = await supabase
+      .from('cases')
+      .select('*')
+      .gte('created_at', today.toISOString())
+      .lt('created_at', tomorrow.toISOString())
+      .eq('status', 'PENDING');
+
+    if (usersData) {
+      const builtCounts = {};
+      const pendingCounts = {};
 
       usersData.forEach(user => {
-        dailyCaseCounts[user.id] = 0;
-        //monthlyCaseCounts[user.id] = 0;
+        builtCounts[user.id] = 0;
+        pendingCounts[user.id] = 0;
       });
 
-      dailyCasesData.forEach(case_ => {
-        
-          const increment = case_.recal && case_.recal.trim() !== '' ? 2 : 1;
-          dailyCaseCounts[case_.assigned_to] += increment;
-        
-      });
-{/* 
-      monthlyCasesData.forEach(case_ => {
-        
-          const increment = case_.recal && case_.recal.trim() !== '' ? 2 : 1;
-          monthlyCaseCounts[case_.assigned_to] += increment;
-
-          ...user,
-        casesPerDay: {
-          [today.toLocaleDateString()]: dailyCaseCounts[user.id]
-        },
-        casesPerMonth: {
-          [today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })]: monthlyCaseCounts[user.id]
+      // Contar BUILT/APPROVED/OE COST
+      dailyBuiltCases?.forEach(case_ => {
+        const increment = case_.recal && case_.recal.trim() !== '' ? 2 : 1;
+        if (case_.assigned_to) {
+          builtCounts[case_.assigned_to] += increment;
         }
-        
-      }); */}
+      });
 
+      // Contar PENDING
+      dailyPendingCases?.forEach(case_ => {
+        const increment = case_.recal && case_.recal.trim() !== '' ? 2 : 1;
+        if (case_.assigned_to) {
+          pendingCounts[case_.assigned_to] += increment;
+        }
+      });
+
+      // Agregar ambos conteos al usuario
       const usersWithCounts = usersData.map(user => ({
         ...user,
         casesPerDay: {
-          [today.toLocaleDateString()]: dailyCaseCounts[user.id]
+          built: builtCounts[user.id],
+          pending: pendingCounts[user.id]
         }
       }));
 
       setUsers(usersWithCounts);
-       
     }
   } catch (error) {
     console.error('Error fetching users and cases:', error);
   }
 };
 
-export const assignCase = async (e, title, location, market, caseInfo, workOrder, selectedUser, setTitle, setSelectedUser, users, fetchData, setErrorMessage, currentUser, userType, installDate, setInstallDate, setSearch, toast, jobtype) => {
+
+export const assignCase = async (e, title, location, market, caseInfo, workOrder, selectedUser, setTitle, setSelectedUser, users, fetchData, setErrorMessage, currentUser, userType, installDate, setInstallDate, setSearch, toast, jobtype, userLocation) => {
   e.preventDefault();
 
   const { data: { user } } = await supabase.auth.getUser();
@@ -292,7 +306,7 @@ export const assignCase = async (e, title, location, market, caseInfo, workOrder
     //const freeUsers = users
       //.filter(u => u.status === 'FREE' && u.availability === 'ON_SITE' && u.user_type === userType);
     const freeUsers = users
-      .filter(u => u.status === 'FREE' && u.availability === 'ON_SITE' && u.user_type === userType);
+      .filter(u => u.status === 'FREE' && u.availability === 'ON_SITE' && u.location === userLocation);
 
 
     if (freeUsers.length === 0) {
@@ -308,7 +322,8 @@ export const assignCase = async (e, title, location, market, caseInfo, workOrder
               assigned_to: null, // No hay usuario asignado
               scheduled_by: currentUser.email.split("@")[0],
               status: 'WAITING_ASSIGNMENT',
-              case_type: jobtype
+              case_type: jobtype,
+              location: userLocation
             }
           ]);
 
@@ -395,7 +410,8 @@ export const assignCase = async (e, title, location, market, caseInfo, workOrder
         assigned_to: assignedUser,
         scheduled_by: currentUser.email.split("@")[0],
         status: 'PENDING',
-        case_type: jobtype
+        case_type: jobtype,
+        location: userLocation
       }
     ]);
 
@@ -665,7 +681,7 @@ export const updateCaseStatus = async (caseId, newStatus, setError, fetchData) =
       .from('cases')
       .update({
         status: newStatus,
-        completed_at: newStatus === 'COMPLETED' ? new Date().toISOString() : null,
+        completed_at: newStatus === 'BUILT' || newStatus === 'APPROVED' || newStatus === 'OE COST' ? new Date().toISOString() : null,
       })
       .eq('id', caseId);
 

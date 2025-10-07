@@ -385,14 +385,14 @@ useEffect(() => {
 
 
   const todayCases = cases.filter(case_ => {
-  const caseDate = new Date(case_.created_at).toDateString();
+  const caseDate = new Date(case_.completed_at).toDateString();
   const today = new Date().toDateString();
 
   return caseDate === today && !["KICK BACK", "VOID", "DUPLICATED", "DELETED", "PENDING", "DENIED", "NOT IN SLACK", "NOT IN GB", "NO REPLY", "OEM JOB", "INSPECTION", "NOT REFERRAL", "3 DAYS OUT"].includes(case_.status);
 });
 
 const recalTodayCases = cases.filter(case_ => {
-  const caseDate = new Date(case_.created_at).toDateString();
+  const caseDate = new Date(case_.completed_at).toDateString();
   const today = new Date().toDateString();
 
   return caseDate === today && !["KICK BACK", "VOID", "DUPLICATED", "DELETED", "PENDING", "DENIED", "NOT IN SLACK", "NOT IN GB", "NO REPLY", "OEM JOB","INSPECTION", "NOT REFERRAL", "3 DAYS OUT"].includes(case_.status) && case_.recal !== null && case_.recal !== '';
@@ -450,6 +450,24 @@ useEffect(() => {
     }
   };
 
+
+  const handleInspectionChange = async (caseId, currentValue) => {
+  try {
+    const { error } = await supabase
+      .from("cases")
+      .update({ inspection: !currentValue }) // toggle
+      .eq("id", caseId);
+
+    if (error) {
+      console.error("Error updating inspection:", error.message);
+    } else {
+      await fetchData(); // refresca lista
+    }
+  } catch (err) {
+    console.error("Unhandled error in handleInspectionChange:", err);
+  }
+};
+
   const handleLocationChange = async (newLocation) => {
     
 
@@ -474,7 +492,7 @@ useEffect(() => {
       .from('cases')
       .update({
         status: newStatus,
-        completed_at: newStatus === 'COMPLETED' ? new Date().toISOString() : null,
+        completed_at: newStatus === 'BUILT' || newStatus === 'APPROVED' || newStatus === 'OE COST'  ? new Date().toISOString() : null,
       })
       .eq('id', caseId);
 
@@ -492,6 +510,7 @@ useEffect(() => {
   const kickbackCases = cases.filter(case_ => case_.status === 'KICK BACK');
   const sigCases = cases.filter(case_ => case_.status === 'OCEAN H./EQ');
   const requestedCases = cases.filter(case_ => case_.status === 'REQUESTED');
+  const inspectionCases = cases.filter(case_ => case_.status === 'INSPECTION');
 
   const handleInputChange = async (caseId, field, value) => {
   const updatedCases = cases.map(case_ => {
@@ -578,11 +597,44 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-row justify-between p-8">
 
-      {(sigCases.length > 0 || kickbackCases.length > 0 || requestedCases.length > 0) && (
+      
   <div className="w-full max-w-[290px] mr-8">
 
+    {/* INSPECTIONS Cases */}
+    
+      <div className="bg-white rounded-lg shadow-md p-3 mb-6">
+
+        <div className="bg-white shadow rounded-xl px-3 py-2 flex items-center space-x-3 mb-5">
+              <div className="bg-purple-100 text-yellow-600 p-1 rounded-full">
+                {/* Ícono de reloj */}
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-1.414 1.414M5.636 18.364l1.414-1.414M6 6l12 12" />
+                </svg>
+              </div>
+              <div>
+                <div className="text-xs text-gray-500"> Inspection Cases:</div>
+                <div className="text-base font-bold text-gray-800">
+                  {inspectionCases.length}
+                </div>
+              </div>
+        </div>
+          {inspectionCases.length > 0 && (
+        <div className="flex flex-col gap-3 max-h-[250px] overflow-y-auto pr-1">
+          {inspectionCases.map(case_ => (
+            <div key={case_.id} className="p-3 rounded-md bg-purple-300 shadow-sm">
+              <p className="text-sm font-semibold text-gray-800">{case_.title}</p>
+              <p className="text-xs text-gray-700">
+                Created: {new Date(case_.created_at).toLocaleString()}
+              </p>
+            </div>
+          ))}
+        </div>
+         )}
+      </div>
+
+
     {/* KICK BACK Cases */}
-    {kickbackCases.length > 0 && (
+    
       <div className="bg-white rounded-lg shadow-md p-3 mb-6">
 
         <div className="bg-white shadow rounded-xl px-3 py-2 flex items-center space-x-3 mb-5">
@@ -599,7 +651,7 @@ useEffect(() => {
                 </div>
               </div>
         </div>
-
+          {kickbackCases.length > 0 && (
         <div className="flex flex-col gap-3 max-h-[250px] overflow-y-auto pr-1">
           {kickbackCases.map(case_ => (
             <div key={case_.id} className="p-3 rounded-md bg-red-300 shadow-sm">
@@ -610,11 +662,12 @@ useEffect(() => {
             </div>
           ))}
         </div>
+         )}
       </div>
-    )}
+   
 
     {/* OCEAN HARBOR / EQUITY (Email) Cases */}
-    {sigCases.length > 0 && (
+    
       <div className="bg-white rounded-lg shadow-md p-3 mb-6">
         <div className="bg-white shadow rounded-xl px-3 py-2 flex items-center space-x-3 mb-5">
               <div className="bg-blue-100 text-yellow-600 p-1 rounded-full">
@@ -630,7 +683,7 @@ useEffect(() => {
                 </div>
               </div>
         </div>
-        
+        {sigCases.length > 0 && (
         <div className="flex flex-col gap-3 max-h-[250px] overflow-y-auto pr-1">
           {sigCases.map(case_ => (
             <div key={case_.id} className="p-3 rounded-md bg-blue-100 shadow-sm">
@@ -641,11 +694,12 @@ useEffect(() => {
             </div>
           ))}
         </div>
+ )}
       </div>
-    )}
+   
 
     {/* REQUESTED Cases */}
-    {requestedCases.length > 0 && (
+    
       <div className="bg-white rounded-lg shadow-md p-3 mb-6">
         <div className="bg-white shadow rounded-xl px-3 py-2 flex items-center space-x-3 mb-5">
               <div className="bg-yellow-100 text-yellow-600 p-1 rounded-full">
@@ -661,7 +715,7 @@ useEffect(() => {
                 </div>
               </div>
         </div>
-        
+        {requestedCases.length > 0 && (
         <div className="flex flex-col gap-3 max-h-[250px] overflow-y-auto pr-1">
           {requestedCases.map(case_ => (
             <div key={case_.id} className="p-3 rounded-md bg-yellow-100 shadow-sm">
@@ -672,11 +726,12 @@ useEffect(() => {
             </div>
           ))}
         </div>
+         )}
       </div>
-    )}
+   
 
   </div>
-)}
+
 
 
       <div className="max-w-7xl mx-auto space-y-8">
@@ -710,20 +765,20 @@ useEffect(() => {
   {/* Tarjeta 1: Welcome y Logo */}
   <div className="bg-white rounded-lg shadow-md p-4 h-24 flex justify-between items-center">
     
-    
+    {/*
         <button
       onClick={() => handleUserTypeChange(user?.user_type === 'OE' ? 'OEM' : 'OE')}
       className={`px-4 py-2 text-xs font-semibold rounded text-white ${user?.user_type === 'OE' ? 'bg-blue-500' : 'bg-green-500'}`}
     >
       {user?.user_type}
     </button>
-{/*
+*/}
     <button
                 onClick={() => handleLocationChange(user?.location === 'SOUTH' ? 'NORTH' : 'SOUTH')}
                 className={`px-4 py-2 text-xs font-semibold rounded text-white ${user?.location === 'SOUTH' ? 'bg-purple-500' : 'bg-green-500'}`}
               >
             {user?.location === 'SOUTH' ? 'SOUTH' : 'NORTH'}
-        </button>*/}
+        </button>
 
     <button
   onClick={toggleStatus}
@@ -940,6 +995,9 @@ useEffect(() => {
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Actions
         </th>
+        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Tags
+        </th>
       </tr>
     </thead>
 
@@ -1010,7 +1068,7 @@ useEffect(() => {
             </td>
 
           
-          <td className="px-6 py-4 whitespace-nowrap">
+          <td className="px-6 py-4 whitespace-nowrap text-xs">
             {new Date(case_.created_at).toLocaleString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -1070,6 +1128,34 @@ useEffect(() => {
                ))}
             </select>
           </td>
+
+          <td className=''>
+                                
+
+                                {case_.inspection ? (
+  // ✅ Cuando es inspection
+                                  <button
+                                    onClick={() => handleInspectionChange(case_.id, case_.inspection)}
+                                    className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-600 text-white"
+                                  >
+                                    Inspection
+                                  </button>
+                                ) : (
+                                  // ⬜ Cuando NO es inspection → espacio vacío pero clickeable
+                                  <div
+                                    onClick={() => handleInspectionChange(case_.id, case_.inspection)}
+                                    className="w-[80px] h-[20px] flex items-center justify-center cursor-pointer hover:bg-gray-100/10 rounded-md transition"
+                                    title="Agregar inspection"
+                                  >
+                                    {/* intencionalmente vacío, solo fondo al hover */}
+                                  </div>
+                                )}
+
+
+
+                          </td>
+
+
         </tr>
       ))}
     </tbody>
