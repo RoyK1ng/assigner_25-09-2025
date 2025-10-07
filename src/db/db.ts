@@ -2,7 +2,6 @@ export const status = [
   { name: "PENDING", id: 1, colorMap: "text-black bg-white hover:bg-yellow-600",            colorStatus: "bg-yellow-500 text-black hover:bg-yellow-600" },
   { name: "BUILT", id: 2, colorMap: "bg-green-300 text-black hover:bg-green-600",           colorStatus: "bg-green-500 text-black hover:bg-green-600" },
   { name: "INSPECTION", id: 2.1, colorMap: "bg-purple-500 text-black hover:bg-purple-600",   colorStatus: "bg-purple-600 text-black hover:bg-purple-600" },
-   
   { name: "APPROVED", id: 3, colorMap: "bg-green-400 text-black hover:bg-green-600",        colorStatus: "bg-green-600 text-black hover:bg-green-600" },
   { name: "OE COST", id: 4, colorMap: "bg-blue-400 text-black hover:bg-blue-500",           colorStatus: "bg-blue-700 text-black hover:bg-blue-400" },
   { name: "NO REPLY", id: 5, colorMap: "bg-yellow-600 text-black hover:bg-yellow-600",      colorStatus: "bg-yellow-500 text-black hover:bg-yellow-600" },

@@ -17,20 +17,21 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
               <table className="min-w-full border ">
                 <thead>
                   <tr className="bg-gray-50">
-                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Title</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Market</th>
-                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Assigned By</th>
-                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">#WO / recal</th>
-                    <th className="px-1 py-1 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">CSR</th>
-                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Assigned At</th>
-                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Install date</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
-                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Tags</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Title</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500  tracking-wider">Market</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Assigner</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">#WO</th>
+                    <th className="px-1 py-1 text-left text-xs font-bold text-gray-500  tracking-wider">CSR</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Status</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Assigned At</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Install date</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500  tracking-wider">Note</th>
+                    <th className="px-3 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Delete</th>
+                    <th className="px-1 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Campaign</th>
+                    <th className="px-20 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Tags</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white divide-y divide-gray-300">
                   {cases
 
                     .filter((case_) => statusFilter === 'DELETED' ? case_.status === 'DELETED' : case_.status !== 'WAITING_ASSIGNMENT' && case_.status !== 'DELETED')
@@ -43,7 +44,7 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                       return (
                         <tr key={case_.id} className={`${rowClassMap}`}>
                           <td
-                            className="px-2 py-4 max-w-[180px] truncate whitespace-nowrap"
+                            className="px-2 py-4 max-w-[180px] text-xs truncate whitespace-nowrap"
                             title={case_.title}
                           >
                             {case_.title}
@@ -58,11 +59,11 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                               />
                             </td> */}
 
-                          <td className="px-1 py-2  whitespace-nowrap text-sm">
+                          <td className="px-1 py-2 text-xs whitespace-nowrap text-sm">
                             {case_.market || 'N/A'}
                           </td>
 
-                          <td className="px-1 py-2 text-sm items-center gap-2">
+                          <td className="px-1 py-2 text-xs items-center gap-2">
                             {case_.scheduled_by || 'N/A'} {/* Mostrar el nombre de usuario que asignó el caso */}
                               <br />
                             <button
@@ -113,14 +114,14 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                               </a>
                             )}
                           </td>
-                          <td className="px-1 py-1 text-sm items-center gap-2">
+                          <td className="px-1 py-1 text-sm items-center text-xs gap-2">
                             <a className="w-5">{users.find((u) => u.id === case_.assigned_to)?.username || 'ASSIGNED'}</a>
                           </td>
                           <td className="px-1 py-2 whitespace-nowrap">
                             <select
                               value={case_.status}
                               onChange={(e) => updateCaseStatus(case_.id, e.target.value, setErrorMessage, fetchData)}
-                              className={`px-1 py-2 rounded ${rowClassStatus}`}
+                              className={`px-1 py-2 w-[90px] rounded text-xs ${rowClassStatus}`}
                             >
                               {status.map((item) => (
                                 <option key={item.id} value={item.name} >
@@ -129,7 +130,7 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                               ))}
                             </select>
                           </td>
-                          <td className="px-5 py-2 text-gray-800 text-xs">
+                          <td className="px-1 py-2 text-gray-800 text-xs">
                             {new Date(case_.created_at).toLocaleString('en-US', {
                               year: 'numeric',
                               month: 'short',
@@ -141,12 +142,12 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                             })}
                           </td>
 
-                          <td className="px-3 py-2 whitespace-nowrap">
+                          <td className="px-3 py-2 whitespace-nowrap text-xs">
                             <DatePicker
                               selected={case_.install_date ? parseISO(case_.install_date) : null}
                               onChange={(date) => handleInstallDateChange(date, case_.id, setInstallDates)}
                               dateFormat="yyyy-MM-dd"
-                              className="w-32 p-2 border rounded"
+                              className="w-[85px] p-2 border rounded"
                               placeholderText="Select date"
                             />
                           </td>
@@ -233,6 +234,15 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
 
                           </td>
 
+                          {/* Tags */}
+                          <td className='px-20 py-1'>
+                                
+
+                               
+
+
+                          </td>
+                                  
                         </tr>
                       );
                     })}

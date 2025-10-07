@@ -11,7 +11,7 @@ export default function Queue({
 }) {
   return (
     <>
-      <div className="w-1/5 backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl shadow-lg p-4 mr-2 text-white">
+      <div className="w-1/5 h-[750px] backdrop-blur-md bg-white/10 border border-white/20 rounded-2xl shadow-lg p-4 mr-2 text-white">
 
         {/* Encabezado del panel */}
         <div className="bg-white shadow rounded-xl px-3 py-2 flex items-center space-x-3 mb-5">

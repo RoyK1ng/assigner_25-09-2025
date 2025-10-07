@@ -97,6 +97,7 @@ export function AdminDashboard() {
   const containerRef = useRef(null);
   const [userLocation, setUserLocation] = useState(null);
   const [jobtype, setJobType] = useState(''); 
+  const [showManagement, setShowManagement] = useState(true);
 
 
 
@@ -360,7 +361,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className={`w-3/4 ml-10 mr-7 ${color}`}>
+      <div className={`w-[1850px] ml-6 mr-6 ${color}`}>
 
       <AdminHeader
               title={title}

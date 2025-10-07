@@ -49,22 +49,22 @@ export const Management = ({
                           </div>
                         </div>
 
-      {/* 
-                        <button
-                        onClick={() => handleUserTypeChange(userType === 'OE' ? 'OEM' : 'OE', currentUserName, setUserType)}
-                        className={`px-4 py-2 text-xs font-semibold rounded text-white ${userType === 'OE' ? 'bg-purple-500' : 'bg-green-500'}`}
-                      >
-                        {userType}
-                    </button>*/}
-
-                    <button
-                        onClick={() => handleLocationChange(userLocation === 'SOUTH' ? 'NORTH' : 'SOUTH', currentUserName, setUserLocation)}
-                        className={`px-4 py-2 text-xs font-semibold rounded text-white ${userLocation === 'SOUTH' ? 'bg-purple-500' : 'bg-green-500'}`}
-                      >
-                        {userLocation}
-                    </button>
+                              {/* 
+                              <button
+                              onClick={() => handleUserTypeChange(userType === 'OE' ? 'OEM' : 'OE', currentUserName, setUserType)}
+                              className={`px-4 py-2 text-xs font-semibold rounded text-white ${userType === 'OE' ? 'bg-purple-500' : 'bg-green-500'}`}
+                            >
+                              {userType}
+                          </button>*/}
+                            {title === "Manage Users" &&
+                            <button
+                                onClick={() => handleLocationChange(userLocation === 'SOUTH' ? 'NORTH' : 'SOUTH', currentUserName, setUserLocation)}
+                                className={`px-4 py-2 text-xs font-semibold rounded text-white ${userLocation === 'SOUTH' ? 'bg-purple-500' : 'bg-green-500'}`}
+                              >
+                                {userLocation}
+                            </button>
                     
-      
+                              }
                         {/* <div className="flex gap-4">
                           <button
                             className="bg-green-200 hover:bg-gray-300 text-green-500 hover:text-green-600 text-lg font-semibold flex items-center px-4 py-2 rounded-md shadow-sm cursor-pointer transition duration-150 ease-in-out"
