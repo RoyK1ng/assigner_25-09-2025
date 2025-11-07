@@ -34,7 +34,8 @@ import {
   handleLocationChange,
   handleJobTypeChange,
   handleInspectionChange,
-  handleLocationChangeCases
+  handleLocationChangeCases,
+  fetchTags
 } from '../hooks/oeDashboardFunctions';
 import Queue from './adminComponents/Queue';
 import AdminCases from './adminComponents/AdminCases';
@@ -97,9 +98,16 @@ export function AdminDashboard() {
   const containerRef = useRef(null);
   const [userLocation, setUserLocation] = useState(null);
   const [jobtype, setJobType] = useState(''); 
-  const [showManagement, setShowManagement] = useState(true);
+  const [tags, setTags] = useState([]);
+  const [tagFilter, setTagFilter] = useState('');
+  const [filterEmptyWorkOrder, setFilterEmptyWorkOrder] = useState(false);
 
 
+
+
+useEffect(() => {
+  fetchTags(setTags);
+}, []);
 
 
   const CustomLegend = ({ payload }) => {
@@ -145,12 +153,12 @@ export function AdminDashboard() {
           console.log('usuario', payload);
 
 
-          await fetch('https://eetpfcujredaijuqizrs.supabase.co/functions/v1/assign-waiting-cases', {
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-waiting-cases`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVldHBmY3VqcmVkYWlqdXFpenJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzQyNDU5OCwiZXhwIjoyMDUzMDAwNTk4fQ.mrP9SmQ1u9oQx-hODYegZaGzX4hAEx8rw4KAEjGQl_Y`,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
               'Content-Type': 'application/json',
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVldHBmY3VqcmVkYWlqdXFpenJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzQyNDU5OCwiZXhwIjoyMDUzMDAwNTk4fQ.mrP9SmQ1u9oQx-hODYegZaGzX4hAEx8rw4KAEjGQl_Y'
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
             }
           });
         }
@@ -303,8 +311,13 @@ export function AdminDashboard() {
   }, [errorMessage]);
 
   const fetchData = async () => {
-    await Promise.all([fetchCases(selectedDate, csrFilter, statusFilter, marketFilter, setCases, caseFilter, userType, setCasesinQueue, installDateFilter, setInstallDateFilter, startDate, endDate, jobFilter), fetchUsers(setUsers, userType)]);
+    await Promise.all([fetchCases(
+      selectedDate, csrFilter, statusFilter, marketFilter, setCases, 
+      caseFilter, userType, setCasesinQueue, installDateFilter, setInstallDateFilter, 
+      startDate, endDate, jobFilter, tagFilter, filterEmptyWorkOrder ), fetchUsers(setUsers, userType)]);
   };
+
+  
 
   usePolling(fetchData, 2000);
 
@@ -647,6 +660,11 @@ export function AdminDashboard() {
               status={status}
               markets={markets}
               filteredUsers={filteredUsers}
+              tags={tags}
+              tagFilter={tagFilter}
+              setTagFilter={setTagFilter}
+              filterEmptyWorkOrder={filterEmptyWorkOrder}
+              setFilterEmptyWorkOrder={setFilterEmptyWorkOrder}
             />
 
             {/* Cases Table */}
@@ -673,6 +691,9 @@ export function AdminDashboard() {
               handleJobTypeChange={handleJobTypeChange}
               handleInspectionChange={handleInspectionChange}
               handleLocationChangeCases={handleLocationChangeCases}
+              tags={tags}
+              setTags={setTags}
+              
             />
 
             
@@ -739,6 +760,7 @@ export function AdminDashboard() {
         removedCase={removedCase}
         timeSince={timeSince}  
         handleLocationChangeCases={handleLocationChangeCases}
+        handleJobTypeChange={handleJobTypeChange}
       />
 
     </div>

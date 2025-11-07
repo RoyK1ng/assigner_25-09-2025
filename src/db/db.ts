@@ -3,7 +3,7 @@ export const status = [
   { name: "BUILT", id: 2, colorMap: "bg-green-300 text-black hover:bg-green-600",           colorStatus: "bg-green-500 text-black hover:bg-green-600" },
   { name: "INSPECTION", id: 2.1, colorMap: "bg-purple-500 text-black hover:bg-purple-600",   colorStatus: "bg-purple-600 text-black hover:bg-purple-600" },
   { name: "APPROVED", id: 3, colorMap: "bg-green-400 text-black hover:bg-green-600",        colorStatus: "bg-green-600 text-black hover:bg-green-600" },
-  { name: "OE COST", id: 4, colorMap: "bg-blue-400 text-black hover:bg-blue-500",           colorStatus: "bg-blue-700 text-black hover:bg-blue-400" },
+  { name: "OE COST", id: 4, colorMap: "bg-blue-400 text-black hover:bg-blue-500",           colorStatus: "bg-blue-600 text-white hover:bg-blue-400" },
   { name: "NO REPLY", id: 5, colorMap: "bg-yellow-600 text-black hover:bg-yellow-600",      colorStatus: "bg-yellow-500 text-black hover:bg-yellow-600" },
   { name: "NOT IN OMEGA", id: 6, colorMap: "bg-red-300 text-black hover:bg-red-800",        colorStatus: "bg-red-600 text-black hover:bg-red-800" },
   { name: "NOT IN SLACK", id: 7, colorMap: "bg-red-300 text-black hover:bg-red-800",        colorStatus: "bg-red-600 text-black hover:bg-red-800" },
@@ -83,6 +83,18 @@ export const territoryMap = {
     SIG_Tallahassee: "NORTH",
     SIG_Miami: "SOUTH",
   };
+
+  export const marketCities = [
+  { name: "Sarasota", id: 1 },
+  { name: "Orlando", id: 2 },
+  { name: "Tampa", id: 3 },
+  { name: "Ft_Myers", id: 4 },
+  { name: "Jacksonville", id: 5 },
+  { name: "Ocala", id: 6 },
+  { name: "Columbia", id: 7 },
+  { name: "Tallahassee", id: 8 },
+  { name: "Miami", id: 9 },
+];
 
 // Colores para cada segmento del gráfico de pastel
   export const COLORS = {

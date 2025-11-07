@@ -4,12 +4,31 @@ import { ChatBubbleLeftIcon } from '@heroicons/react/24/outline'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 import { parseISO } from 'date-fns'
+import { removeTagFromCase, createTag, addTagToCase, fetchCaseTags   } from '../../hooks/oeDashboardFunctions';
+import { useEffect, useState } from 'react'
+
+import { usePolling } from '../../hooks/usePolling'
+
+
+export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal,setCases,fetchData,filteredUsers,setErrorMessage,currentUserName,userType,toast,status,setSelectedCaseId,removedCase, statusFilter, users, llave, handleInstallDateChange, setInstallDates, updateCaseStatus, handleJobTypeChange, handleInspectionChange, handleLocationChangeCases, tags, setTags }) {
+
+  //const [tags, setTags] = useState([]);
+const [caseTags, setCaseTags] = useState({});
+const [newTagName, setNewTagName] = useState("");
+const [newTagColor, setNewTagColor] = useState("#007bff");
+const [showAddTagModal, setShowAddTagModal] = useState(false);
+const [selectedCaseForTag, setSelectedCaseForTag] = useState(null);
 
 
 
 
+usePolling(() => fetchCaseTags(setCaseTags), 30000);
 
-export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal,setCases,fetchData,filteredUsers,setErrorMessage,currentUserName,userType,toast,status,setSelectedCaseId,removedCase, statusFilter, users, llave, handleInstallDateChange, setInstallDates, updateCaseStatus, handleJobTypeChange, handleInspectionChange, handleLocationChangeCases }) {
+useEffect(() => {
+  //fetchTags(setTags);
+  fetchCaseTags(setCaseTags);
+}, []);
+
   return (
     <>
 
@@ -31,11 +50,11 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                     <th className="px-20 py-2 text-left text-xs font-bold text-gray-500  tracking-wider">Tags</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-300">
+                <tbody className="bg-white divide-y divide-gray-400/50">
                   {cases
 
                     .filter((case_) => statusFilter === 'DELETED' ? case_.status === 'DELETED' : case_.status !== 'WAITING_ASSIGNMENT' && case_.status !== 'DELETED')
-                    .slice(0, 150)
+                    .slice(0, 70)
                     .map((case_) => {
 
                       // Implementar colores de fila según el estado
@@ -44,7 +63,7 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                       return (
                         <tr key={case_.id} className={`${rowClassMap}`}>
                           <td
-                            className="px-2 py-4 max-w-[180px] text-xs truncate whitespace-nowrap"
+                            className="px-2 py-4 max-w-[160px] text-xs truncate whitespace-nowrap"
                             title={case_.title}
                           >
                             {case_.title}
@@ -77,7 +96,7 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                                 </button>
                           </td>
 
-                          <td className="px-3 py-2 text-black whitespace-nowrap text-sm flex items-center gap-2">
+                          <td className="px-3 py-2 text-black  whitespace-nowrap text-sm flex items-center gap-2">
                             <input
                               type="text"
                               value={case_.work_order || ''}
@@ -100,6 +119,7 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                               </a>
                             )}
                           </td>
+
                           <td className="px-3 py-2 text-black whitespace-nowrap text-sm flex items-center gap-2">
                             <input
                               type="text"
@@ -114,23 +134,33 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                               </a>
                             )}
                           </td>
+
+
+                          {/* Asignado a */}  
                           <td className="px-1 py-1 text-sm items-center text-xs gap-2">
                             <a className="w-5">{users.find((u) => u.id === case_.assigned_to)?.username || 'ASSIGNED'}</a>
                           </td>
+
+                          {/* Estado */}
                           <td className="px-1 py-2 whitespace-nowrap">
-                            <select
-                              value={case_.status}
-                              onChange={(e) => updateCaseStatus(case_.id, e.target.value, setErrorMessage, fetchData)}
-                              className={`px-1 py-2 w-[90px] rounded text-xs ${rowClassStatus}`}
-                            >
-                              {status.map((item) => (
-                                <option key={item.id} value={item.name} >
-                                  {item.name}
-                                </option>
-                              ))}
-                            </select>
+                            
+                                <select
+                                  value={case_.status}
+                                  onChange={(e) => updateCaseStatus(case_.id, e.target.value, setErrorMessage, fetchData)}
+                                  className={`px-1 py-2 w-[90px] rounded text-xs ${rowClassStatus}`}
+                                >
+                                  {status
+                                    .filter(item => ["BUILT", "PENDING", "VOID"].includes(item.name))
+                                    .map((item) => (
+                                      <option key={item.id} value={item.name}>
+                                        {item.name}
+                                      </option>
+                                    ))
+                                  }
+                                </select>
+                                
                           </td>
-                          <td className="px-1 py-2 text-gray-800 text-xs">
+                          <td className="px-4 py-2 text-gray-800 text-xs">
                             {new Date(case_.created_at).toLocaleString('en-US', {
                               year: 'numeric',
                               month: 'short',
@@ -235,13 +265,29 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                           </td>
 
                           {/* Tags */}
-                          <td className='px-20 py-1'>
-                                
-
-                               
-
-
-                          </td>
+                          <td className='px-[70px] py-1'>
+                                  <div className="flex flex-wrap gap-1">
+                                    {caseTags[case_.id]?.map(tag => (
+                                      <button
+                                        key={tag.id}
+                                        className="px-2 py-0.5 text-xs rounded-[5px] text-black lowercase"
+                                        style={{ backgroundColor: tag.color }}
+                                        onClick={() => removeTagFromCase(case_.id, tag.id, fetchCaseTags, setCaseTags)}
+                                      >
+                                        {tag.name}
+                                      </button>
+                                    ))}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedCaseForTag(case_.id);
+                                        setShowAddTagModal(true);
+                                      }}
+                                      className="bg-blue-100/50 hover:bg-gray-300 text-gray-800 text-xs px-2 py-0.5 rounded-[5px]"
+                                    >
+                                      + Tag
+                                    </button>
+                                  </div>
+                                </td>
                                   
                         </tr>
                       );
@@ -249,8 +295,63 @@ export default function AdminCases({ cases,handleInputChange,handleOpenNoteModal
                 </tbody>
               </table>
 
+                      {showAddTagModal && (
+                              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+                                  <h3 className="text-lg font-bold mb-4">Add Tag</h3>
+                                  <div className="mb-4">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">Select Tag</label>
+                                    <select
+                                        className="w-full p-2 border rounded"
+                                        onChange={(e) => addTagToCase(selectedCaseForTag, e.target.value, fetchCaseTags, setCaseTags)}
+                                      >
+                                        <option value="">Select a tag</option>
+                                        {tags.map(tag => (
+                                          <option key={tag.id} value={tag.id}>
+                                            {tag.name}
+                                          </option>
+                                        ))}
+                                      </select>
+                                  </div>
+                                  <div className="mb-4">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">Or Create New Tag</label>
+                                    <div className="flex gap-2">
+                                      <input
+                                        type="text"
+                                        placeholder="Tag name"
+                                        value={newTagName}
+                                        onChange={(e) => setNewTagName(e.target.value)}
+                                        className="w-full p-2 border rounded"
+                                      />
+                                      <input
+                                        type="color"
+                                        value={newTagColor}
+                                        onChange={(e) => setNewTagColor(e.target.value)}
+                                        className="w-10 h-10"
+                                      />
+                                      <button
+                                        onClick={async () => {
+                                          await createTag(newTagName, newTagColor, setTags);
+                                          setNewTagName("");
+                                          setNewTagColor("#007bff");
+                                        }}
+                                        className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700"
+                                      >
+                                        Create
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <button
+                                    onClick={() => setShowAddTagModal(false)}
+                                    className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+                                  >
+                                    Close
+                                  </button>
+                                </div>
+                              </div>
+                            )}
 
-            </div>
+                                        </div>
       
     </>
   )

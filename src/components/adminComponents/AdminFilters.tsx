@@ -3,6 +3,7 @@ import { UserCheck, Search, RotateCcw } from 'lucide-react'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
 
+import {marketCities} from '../../db/db'
  
 // ✅ Definimos valores por defecto en las props para evitar undefined
 export default function AdminFilters({
@@ -27,7 +28,12 @@ export default function AdminFilters({
   setDateRange,
   status,         // 👈 valor por defecto []
   markets ,        // 👈 valor por defecto []
-  filteredUsers  // 👈 valor por defecto []
+  filteredUsers,
+  tags,
+   setTagFilter, // 👈 Añadir esta prop
+  tagFilter,
+  filterEmptyWorkOrder,
+  setFilterEmptyWorkOrder // 👈 valor por defecto []
 })
 
 
@@ -48,11 +54,11 @@ export default function AdminFilters({
             placeholderText="Select a date range"
             onChange={(update) => setDateRange(update)}
             dateFormat="yyyy-MM-dd"
-            className="w-full p-2 border rounded"
+            className="w-[170px] p-2 border rounded"
             isClearable
           />
 
-          <div className="relative w-64">
+          <div className="relative w-[170px]">
             <span className="absolute left-3 top-1/2 transform -translate-y-1/2">
               <Search className="w-4 h-4 text-gray-900" />
             </span>
@@ -61,8 +67,21 @@ export default function AdminFilters({
               value={caseFilter}
               onChange={(e) => setCaseFilter(e.target.value)}
               placeholder="Search cases..."
-              className="pl-10 pr-4 py-2 border rounded w-full"
+              className="pl-10 pr-4 py-2 border rounded w-[170px]"
             />
+          </div>
+
+          <div className="mb-6 w-[150px] flex items-center space-x-2">
+            <input
+              type="checkbox"
+              id="filterEmptyWorkOrder"
+              checked={filterEmptyWorkOrder}
+              onChange={(e) => setFilterEmptyWorkOrder(e.target.checked)}
+              className="h-4 w-4 text-blue-600"
+            />
+            <label htmlFor="filterEmptyWorkOrder" className="text-sm font-medium text-gray-700">
+            Empty WO#
+            </label>
           </div>
 
           {/* Botón reset */}
@@ -74,6 +93,10 @@ export default function AdminFilters({
               setCsrFilter("")
               SetMarketFilter("")
               setInstallDateFilter(null)
+              setFilterEmptyWorkOrder(false)
+              setJobFilter("")
+              setTagFilter("")
+              setDateRange([null, null])
             }}
             className="text-blue-500 hover:text-red-600 transition-colors"
             title="Reset filters"
@@ -181,13 +204,31 @@ export default function AdminFilters({
             className="w-full p-2 border rounded"
           >
             <option value="">Select Market</option>
-            {markets.map((market) => (
-              <option key={market.id} value={market.name}>
-                {market.name.replace(/_/g, " ")}
+            {marketCities.map((city) => (
+              <option key={city.id} value={city.name}>
+                {city.name.replace(/_/g, " ")}
               </option>
             ))}
           </select>
         </div>
+
+        
+
+        <div className="mb-6 w-1/2">
+  <label className="block text-gray-700 text-sm font-bold mb-2">Tags</label>
+  <select
+    value={tagFilter}
+    onChange={(e) => setTagFilter(e.target.value)}
+    className="w-full p-2 border rounded "
+  >
+    <option value="">Select Tag</option>
+    {tags.map((tag) => (
+      <option className='uppercase' key={tag.id} value={tag.id}>
+        {tag.name}
+      </option>
+    ))}
+  </select>
+</div>
       </div>
     </>
   )

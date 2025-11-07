@@ -44,6 +44,73 @@ export function UserDashboard() {
   const [llave, setLLave] = useState<boolean | null>(false);
   const [lastEditNote, setLastEditNote] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState('');
+  const [userTags, setUserTags] = useState<Record<string, any[]>>({});
+const [allTags, setAllTags] = useState<any[]>([]);
+const [showAddUserTagModal, setShowAddUserTagModal] = useState(false);
+const [selectedUserTag, setSelectedUserTag] = useState<string | null>(null);
+const [newUserTagName, setNewUserTagName] = useState("");
+const [newUserTagColor, setNewUserTagColor] = useState("#007bff");
+const [showAddCaseTagModal, setShowAddCaseTagModal] = useState(false);
+const [selectedCaseForTag, setSelectedCaseForTag] = useState<string | null>(null);
+const [tagFilter, setTagFilter] = useState('');
+
+// Cargar todos los tags disponibles
+const fetchAllTags = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*');
+    if (error) throw error;
+    setAllTags(data || []);
+  } catch (err) {
+    console.error("Error fetching tags:", err);
+  }
+};
+
+// Cargar los tags asignados a un usuario
+const fetchUserTags = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_tags')
+      .select('*, tags(*)')
+      .eq('user_id', userId);
+    if (error) throw error;
+    const userTagMap = { [userId]: data.map((item: any) => item.tags) };
+    setUserTags(userTagMap);
+  } catch (err) {
+    console.error("Error fetching user tags:", err);
+  }
+};
+
+// Asignar un tag a un usuario
+const addTagToCase = async (caseId: string, tagId: string) => {
+  try {
+    const { error } = await supabase
+      .from('case_tags')
+      .insert([{ case_id: caseId, tag_id: tagId }]);
+    if (error) throw error;
+    await fetchAssignedCases(user?.id || ''); // Refrescar los casos asignados
+  } catch (err) {
+    console.error("Error adding tag to case:", err);
+  }
+};
+
+// Eliminar un tag de un usuario
+const removeTagFromCase = async (caseId: string, tagId: string) => {
+  try {
+    const { error } = await supabase
+      .from('case_tags')
+      .delete()
+      .eq('case_id', caseId)
+      .eq('tag_id', tagId);
+    if (error) throw error;
+    await fetchAssignedCases(user?.id || ''); // Refrescar los casos asignados
+  } catch (err) {
+    console.error("Error removing tag from case:", err);
+  }
+};
+
+
 
   useEffect(() => {
     const subscription = supabase
@@ -60,12 +127,12 @@ export function UserDashboard() {
           console.log('usuario', payload);
   
           
-          await fetch('https://eetpfcujredaijuqizrs.supabase.co/functions/v1/assign-waiting-cases', {
+          await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assign-waiting-cases`, {
             method: 'POST',
             headers: {
-              'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVldHBmY3VqcmVkYWlqdXFpenJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzQyNDU5OCwiZXhwIjoyMDUzMDAwNTk4fQ.mrP9SmQ1u9oQx-hODYegZaGzX4hAEx8rw4KAEjGQl_Y`,
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
               'Content-Type': 'application/json',
-              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVldHBmY3VqcmVkYWlqdXFpenJzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczNzQyNDU5OCwiZXhwIjoyMDUzMDAwNTk4fQ.mrP9SmQ1u9oQx-hODYegZaGzX4hAEx8rw4KAEjGQl_Y'
+              'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
             }
           });
         }
@@ -187,22 +254,23 @@ const casesTwoDaysOut = casesQueue.filter(case_ => {
 useEffect(() => {
   const initializeData = async () => {
     await fetchUserData();
-
     await fetchAllCases();
-     
     if (user?.id) {
       const { data } = await supabase
         .from('cases')
         .select('*')
         .eq('assigned_to', user.id);
-
       if (data) {
         setPrevCaseCount(data.length);
         setCases(data);
       }
     }
+    // Cargar tags
+    await fetchAllTags();
+    if (user?.id) {
+      await fetchUserTags(user.id);
+    }
   };
-
   initializeData();
 }, []);
     
@@ -276,36 +344,45 @@ useEffect(() => {
 
 
   const fetchAssignedCases = async (userId: string) => {
-    try {
-      const { data, error: casesError } = await supabase
-        .from('cases')
-        .select('*')
-        .eq('assigned_to', userId)
-        .order('created_at', { ascending: false });
+  try {
+    const { data: casesData, error: casesError } = await supabase
+      .from('cases')
+      .select('*, case_tags(tags(*))')
+      .eq('assigned_to', userId)
+      .order('created_at', { ascending: false });
 
-      if (casesError) {
-        setError(casesError.message);
-        return;
-      }
-
-
-      if (data) {
-          // Comprobar si hay nuevos casos
-        if (data.length > prevCaseCount && prevCaseCount > 0) {
-           setNewCaseMessage('¡Tienes un nuevo caso asignado!');
-          triggerNotification('¡Tienes un nuevo caso asignado!');
-        } else {
-          setNewCaseMessage(null); // Resetear el mensaje si no hay nuevos casos
-        } //new
-        
-        setCases(data);
-        setPrevCaseCount(data.length);   // Actualizar la lista de casos y el contador previo
-      }
-    } catch (err) {
-      console.error('Error fetching cases:', err);
-      setError('Error fetching cases');
+    if (casesError) {
+      setError(casesError.message);
+      return;
     }
-  };
+
+    if (casesData) {
+      let filteredCases = casesData;
+
+      if (tagFilter) {
+        filteredCases = filteredCases.filter((case_) =>
+          case_.case_tags.some((caseTag) => caseTag.tags.id === tagFilter)
+        );
+      }
+
+      if (filteredCases.length > prevCaseCount && prevCaseCount > 0) {
+        setNewCaseMessage('¡Tienes un nuevo caso asignado!');
+        triggerNotification('¡Tienes un nuevo caso asignado!');
+      } else {
+        setNewCaseMessage(null);
+      }
+
+      setCases(filteredCases);
+      setPrevCaseCount(filteredCases.length);
+    }
+  } catch (err) {
+    console.error('Error fetching cases:', err);
+    setError('Error fetching cases');
+  }
+};
+
+
+
 
  
 
@@ -507,11 +584,21 @@ useEffect(() => {
   }
 };
 
-  const kickbackCases = cases.filter(case_ => case_.status === 'KICK BACK');
-  const sigCases = cases.filter(case_ => case_.status === 'OCEAN H./EQ');
-  const requestedCases = cases.filter(case_ => case_.status === 'REQUESTED');
-  const inspectionCases = cases.filter(case_ => case_.status === 'INSPECTION');
+  const kickbackCases = cases.filter(case_ =>
+  case_.case_tags.some(caseTag => caseTag.tags.name === 'KICK BACK')
+);
 
+const sigCases = cases.filter(case_ =>
+  case_.case_tags.some(caseTag => caseTag.tags.name === 'OCEAN H./EQ')
+);
+
+const requestedCases = cases.filter(case_ =>
+  case_.case_tags.some(caseTag => caseTag.tags.name === 'REQUESTED')
+);
+
+const inspectionCases = cases.filter(
+  case_ => case_.inspection === true
+);
   const handleInputChange = async (caseId, field, value) => {
   const updatedCases = cases.map(case_ => {
     if (case_.id === caseId) {
@@ -555,6 +642,8 @@ useEffect(() => {
     const search = caseFilter.trim().toLowerCase();
     filteredCases = filteredCases.filter(case_ => case_.title?.toLowerCase().includes(search) || case_.work_order?.toLowerCase().includes(search) || case_.recal?.toLowerCase().includes(search));
   }
+
+ 
 
 
 //SET INSTALL DATE
@@ -765,14 +854,14 @@ useEffect(() => {
   {/* Tarjeta 1: Welcome y Logo */}
   <div className="bg-white rounded-lg shadow-md p-4 h-24 flex justify-between items-center">
     
-    {/*
+   
         <button
       onClick={() => handleUserTypeChange(user?.user_type === 'OE' ? 'OEM' : 'OE')}
       className={`px-4 py-2 text-xs font-semibold rounded text-white ${user?.user_type === 'OE' ? 'bg-blue-500' : 'bg-green-500'}`}
     >
       {user?.user_type}
     </button>
-*/}
+
     <button
                 onClick={() => handleLocationChange(user?.location === 'SOUTH' ? 'NORTH' : 'SOUTH')}
                 className={`px-4 py-2 text-xs font-semibold rounded text-white ${user?.location === 'SOUTH' ? 'bg-purple-500' : 'bg-green-500'}`}
@@ -877,7 +966,7 @@ useEffect(() => {
   <div>
     <div className="text-xs text-gray-500">Queue</div>
     <div className="text-base font-bold text-gray-800">
-      {casesQueue.length}
+      {casesQueue.filter((c) => c.case_type == user?.user_type).length}
     </div>
   </div>
 
@@ -965,6 +1054,23 @@ useEffect(() => {
 
     </select>
   </div>
+
+    <div className="mb-6">
+    <label className="block text-gray-700 text-sm font-bold mb-2">Tags</label>
+    <select
+      value={tagFilter}
+      onChange={(e) => setTagFilter(e.target.value)}
+      className="w-full p-2 border rounded"
+    >
+      <option value="">All Tags</option>
+      {allTags.map(tag => (
+        <option key={tag.id} value={tag.id}>
+          {tag.name}
+        </option>
+      ))}
+    </select>
+  </div>
+
 </div>
 
 
@@ -996,6 +1102,9 @@ useEffect(() => {
           Actions
         </th>
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Campaign
+        </th>
+         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Tags
         </th>
       </tr>
@@ -1068,7 +1177,7 @@ useEffect(() => {
             </td>
 
           
-          <td className="px-6 py-4 whitespace-nowrap text-xs">
+          <td className="px-6 py-4 whitespace text-xs">
             {new Date(case_.created_at).toLocaleString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -1116,11 +1225,11 @@ useEffect(() => {
             <select
               value={case_.status}
               onChange={(e) => updateCaseStatus(case_.id, e.target.value)}
-              className={`px-1 py-2 rounded ${status.find((item) => item.name === case_.status)?.colorStatus || "bg-gray-100"}`}
+              className={`w-[100px] py-2 rounded ${status.find((item) => item.name === case_.status)?.colorStatus || "bg-gray-100"}`}
             >
                <option value="">Select Status</option>
                {status
-               .filter(status => status.name !== "DELETED")
+               .filter(status => status.name !== "DELETED" && ["BUILT", "PENDING", "VOID"].includes(status.name))
                .map((status) => (
                  <option key={status.id} value={status.name}>
                    {status.name}
@@ -1155,12 +1264,71 @@ useEffect(() => {
 
                           </td>
 
+                          <td>
+  <button
+    onClick={() => {
+      setSelectedCaseForTag(case_.id);
+      setShowAddCaseTagModal(true);
+    }}
+    className="bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs px-2 py-0.5 rounded-full"
+  >
+    + Tag
+  </button>
+  <div className="flex flex-wrap gap-1 mt-2 lowercase">
+    {case_.case_tags?.map((caseTag: any) => (
+      <button
+        key={caseTag.tags.id}
+        className="px-2 py-0.5 text-xs rounded-[5px] text-black lowercase"
+        style={{ backgroundColor: caseTag.tags.color }}
+        onClick={() => removeTagFromCase(case_.id, caseTag.tags.id)}
+      >
+        {caseTag.tags.name} 
+      </button>
+    ))}
+  </div>
+</td>
+
 
         </tr>
       ))}
     </tbody>
   </table>
 </div>
+
+{showAddCaseTagModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h3 className="text-lg font-bold mb-4">Add Tag to Case</h3>
+      <div className="mb-4">
+        <label className="block text-gray-700 text-sm font-bold mb-2">Select Tag</label>
+        <select
+          className="w-full p-2 border rounded"
+          onChange={(e) => {
+            const tagId = e.target.value;
+            if (tagId && selectedCaseForTag) {
+              addTagToCase(selectedCaseForTag, tagId);
+              setShowAddCaseTagModal(false);
+            }
+          }}
+        >
+          <option value="">Select a tag</option>
+          {allTags.map(tag => (
+            <option key={tag.id} value={tag.id}>
+              {tag.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      
+      <button
+        onClick={() => setShowAddCaseTagModal(false)}
+        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+)}
 
 
  
@@ -1236,79 +1404,96 @@ useEffect(() => {
 
         
 
-      </div>
+      </div> 
 
-      <div className="w-80 bg-white rounded-lg shadow-md p-3 ml-8 max-h-[900px]">
+          <div className="w-80 bg-white rounded-lg shadow-md p-3 ml-8 max-h-[900px]">
+  {/* Encabezado */}
   <div className="bg-white shadow rounded-xl px-3 py-2 flex items-center space-x-3 mb-5">
-  <div className="bg-yellow-100 text-yellow-600 p-1 rounded-full">
-    {/* Ícono de reloj */}
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  </div>
-  <div>
-    <div className="text-xs text-gray-500">Pending</div>
-    <div className="text-base font-bold text-gray-800">
-      {cases.filter((c) => c.status === 'PENDING').length}
+    <div className="bg-yellow-100 text-yellow-600 p-1 rounded-full">
+      {/* Ícono de reloj */}
+      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <div>
+      <div className="text-xs text-gray-500">Pending</div>
+      <div className="text-base font-bold text-gray-800">
+        {cases.filter((c) => c.status === 'PENDING').length}
+      </div>
     </div>
   </div>
-</div>
 
-  <div className="overflow-y-auto flex flex-col gap-3 pr-1 max-h-[750px] ">
+  {/* Lista de casos pendientes */}
+  <div className="overflow-y-auto flex flex-col gap-3 pr-1 max-h-[750px]">
     {cases
       .filter((c) => c.status === 'PENDING')
       .map((case_) => {
         const installDate = new Date(case_.install_date);
         const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalizamos la hora
         const diffDays = Math.ceil((installDate - today) / (1000 * 60 * 60 * 24));
-        const isTwoDaysAhead = diffDays === 2;
 
-        const bgColor = isTwoDaysAhead ? "bg-red-100" : "bg-yellow-100";
+        // 🎯 Condiciones
+        const isTwoDaysAhead = diffDays === 2;
+        const isTomorrow = diffDays === 1;
+
+        // 🎨 Color de fondo según la cercanía
+        let bgColor = "bg-yellow-100";
+        if (isTwoDaysAhead) bgColor = "bg-red-100";
+        else if (isTomorrow) bgColor = "bg-red-100";
 
         return (
-          <div key={case_.id} className={`p-3 rounded-lg shadow-sm border ${bgColor} relative `}>
+          <div key={case_.id} className={`p-3 rounded-lg shadow-sm border ${bgColor} relative`}>
             <div className="mb-2">
               <h3 className="text-sm font-semibold text-gray-800">{case_.title}</h3>
               <p className="text-xs text-black">Market: {case_.market}</p>
               <p className="text-xs text-black">Install Date: {case_.install_date}</p>
             </div>
 
+            {/* Tipo de caso */}
             <span
-                    className={`absolute top-31 right-3 px-2 py-0.5 rounded-md text-[10px] font-bold ${case_.case_type === "OEM"
-                      ? "bg-blue-600 text-white"
-                      : "bg-green-600 text-white"
-                      }`}
-                  >
-                    {case_.case_type}
-                  </span>
+              className={`absolute top-31 right-3 px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                case_.case_type === "OEM" ? "bg-blue-600 text-white" : "bg-green-600 text-white"
+              }`}
+            >
+              {case_.case_type}
+            </span>
 
+            {/* Etiquetas de alerta */}
             {isTwoDaysAhead && (
               <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-sm">
                 Two days out
               </span>
             )}
+            {isTomorrow && (
+              <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded shadow-sm">
+                Tomorrow
+              </span>
+            )}
 
+            {/* Select de estado */}
             <select
               value={case_.status}
               onChange={(e) => updateCaseStatus(case_.id, e.target.value)}
-              className={`
-                text-xs font-semibold px-3 py-1 rounded-md transition duration-150 ease-in-out shadow-sm
-                ${`px-1 py-1 rounded ${status.find((item) => item.name === case_.status)?.colorStatus || "bg-gray-100"}`}}`}
+              className={`text-xs font-semibold px-3 py-1 rounded-md transition duration-150 ease-in-out shadow-sm ${
+                status.find((item) => item.name === case_.status)?.colorStatus || "bg-gray-100"
+              }`}
             >
               <option value="">Select Status</option>
               {status
-              .filter(status => status.name !== "DELETED")
-              .map((status) => (
-                <option key={status.id} value={status.name}>
-                  {status.name}
-                </option>
-              ))}
+                .filter((status) => status.name !== "DELETED")
+                .map((status) => (
+                  <option key={status.id} value={status.name}>
+                    {status.name}
+                  </option>
+                ))}
             </select>
           </div>
         );
       })}
   </div>
 </div>
+
 
 
 

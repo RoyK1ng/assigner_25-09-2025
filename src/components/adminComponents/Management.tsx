@@ -49,13 +49,14 @@ export const Management = ({
                           </div>
                         </div>
 
-                              {/* 
+                               {/*
                               <button
                               onClick={() => handleUserTypeChange(userType === 'OE' ? 'OEM' : 'OE', currentUserName, setUserType)}
                               className={`px-4 py-2 text-xs font-semibold rounded text-white ${userType === 'OE' ? 'bg-purple-500' : 'bg-green-500'}`}
                             >
                               {userType}
                           </button>*/}
+
                             {title === "Manage Users" &&
                             <button
                                 onClick={() => handleLocationChange(userLocation === 'SOUTH' ? 'NORTH' : 'SOUTH', currentUserName, setUserLocation)}

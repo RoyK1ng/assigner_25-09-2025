@@ -23,6 +23,113 @@ export const fetchAllCases = async (userType, setCasesQueue) => {
   }
 };
 
+export const fetchTags = async (setTags) => {
+  try {
+    const { data, error } = await supabase
+      .from('tags')
+      .select('*');
+    if (error) throw error;
+    setTags(data || []);
+  } catch (err) {
+    console.error("Error fetching tags:", err);
+  }
+};
+
+export const fetchCaseTags = async (setCaseTags) => {
+  try {
+    const pageSize = 1000; // máximo por request
+    const total = 5000; // número total de tags que queremos traer
+    const pages = Math.ceil(total / pageSize);
+    let allData = [];
+
+    for (let i = 0; i < pages; i++) {
+      const { data, error } = await supabase
+        .from('case_tags')
+        .select('*, tags(*)')
+        .range(i * pageSize, (i + 1) * pageSize - 1);
+
+      if (error) {
+        console.error("Error al obtener tags del caso:", error);
+        setCaseTags({});
+        return;
+      }
+
+      if (data.length === 0) break; // no hay más datos
+      allData = [...allData, ...data];
+    }
+
+    // Agrupar tags por case_id
+    const groupedTags = allData.reduce((acc, caseTag) => {
+      const { case_id, tags } = caseTag;
+      if (!acc[case_id]) {
+        acc[case_id] = [];
+      }
+      acc[case_id].push(tags);
+      return acc;
+    }, {});
+
+    setCaseTags(groupedTags);
+
+  } catch (err) {
+    console.error("Error inesperado al obtener tags:", err);
+    setCaseTags({});
+  }
+};
+
+
+
+export const addTagToCase = async (caseId, tagId, fetchCaseTags, setCaseTags) => {
+  try {
+    const { error } = await supabase
+      .from('case_tags')
+      .insert([{ case_id: caseId, tag_id: tagId }]);
+    if (error) throw error;
+    // Refrescar los tags del caso
+    await fetchCaseTags(setCaseTags);
+  } catch (err) {
+    console.error("Error adding tag to case:", err);
+  }
+};
+
+export const removeTagFromCase = async (caseId, tagId, fetchCaseTags, setCaseTags) => {
+  try {
+    const { error } = await supabase
+      .from('case_tags')
+      .delete()
+      .eq('case_id', caseId)
+      .eq('tag_id', tagId);
+    if (error) throw error;
+    // Refrescar los tags del caso
+    await fetchCaseTags(setCaseTags);
+  } catch (err) {
+    console.error("Error removing tag from case:", err);
+  }
+};
+
+export const createTag = async (name, color, setTags) => {
+  try {
+    // Verificar si el tag ya existe
+    const { data: existingTags, error: checkError } = await supabase
+      .from('tags')
+      .select('*')
+      .eq('name', name);
+    if (checkError) throw checkError;
+    if (existingTags.length > 0) {
+      alert("El tag ya existe.");
+      return;
+    }
+    // Insertar el nuevo tag
+    const { data, error } = await supabase
+      .from('tags')
+      .insert([{ name, color }])
+      .select();
+    if (error) throw error;
+    if (data) setTags(prev => [...prev, data[0]]);
+  } catch (err) {
+    console.error("Error creating tag:", err);
+  }
+};
+
 export const handleUserTypeChange = async (newType, currentUserName, setUserType) => {
     
 
@@ -120,13 +227,13 @@ export const fetchCases = async (
   setInstallDateFilter,
   startDate,
   endDate,
-  jobFilter
+  jobFilter, tagFilter, filterEmptyWorkOrder
 ) => {
   try {
     // 🔹 Traemos 5000 filas usando rangos de 1000 en 1000
     let allCases = [];
     const limit = 1000; // máximo por request
-    const total = 2000; // filas totales que quieres traer
+    const total = 4000; // filas totales que quieres traer
     const pages = Math.ceil(total / limit);
 
     for (let i = 0; i < pages; i++) {
@@ -175,6 +282,8 @@ export const fetchCases = async (
       });
     }
 
+    
+
     if (csrFilter) {
       filtered = filtered.filter((case_) => case_.assigned_to === csrFilter);
     }
@@ -193,11 +302,38 @@ export const fetchCases = async (
     }
 
     if (marketFilter) {
-      filtered = filtered.filter((case_) => case_.market === marketFilter);
+      const normalizedFilter = marketFilter.toLowerCase();
+      filtered = filtered.filter((case_) => 
+        case_.market?.toLowerCase().includes(normalizedFilter)
+      );
     }
+    
     if (jobFilter) {
+      console.log('Filtering job', jobFilter);
+
       filtered = filtered.filter((case_) => case_.case_type === jobFilter);
     }
+
+    if (tagFilter) {
+  // Obtener los casos que tienen el tag seleccionado
+  const { data: caseTags, error: caseTagsError } = await supabase
+    .from('case_tags')
+    .select('case_id')
+    .eq('tag_id', tagFilter);
+
+  if (caseTagsError) {
+    console.error("Error fetching case tags:", caseTagsError);
+  } else {
+    const caseIdsWithTag = caseTags.map(ct => ct.case_id);
+    filtered = filtered.filter((case_) => caseIdsWithTag.includes(case_.id));
+  }
+}
+console.log('Filtering cases with empty work order', filterEmptyWorkOrder);
+if (filterEmptyWorkOrder) {
+  filtered = filtered.filter(
+    (case_) => !case_.work_order || case_.work_order.trim() === ''
+  );
+}
 
     setCases(filtered);
   } catch (err) {
@@ -227,7 +363,8 @@ export const fetchUsers = async (setUsers, userType) => {
     const { data: usersData } = await supabase
       .from('users')
       .select('*')
-      .eq('is_admin', false);
+      .eq('is_admin', false)
+      .eq('user_active', true);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -269,7 +406,7 @@ export const fetchUsers = async (setUsers, userType) => {
 
       // Contar PENDING
       dailyPendingCases?.forEach(case_ => {
-        const increment = case_.recal && case_.recal.trim() !== '' ? 2 : 1;
+        const increment = case_.recal && case_.recal.trim() !== '' ? 1 : 1;
         if (case_.assigned_to) {
           pendingCounts[case_.assigned_to] += increment;
         }
@@ -306,7 +443,7 @@ export const assignCase = async (e, title, location, market, caseInfo, workOrder
     //const freeUsers = users
       //.filter(u => u.status === 'FREE' && u.availability === 'ON_SITE' && u.user_type === userType);
     const freeUsers = users
-      .filter(u => u.status === 'FREE' && u.availability === 'ON_SITE' && u.location === userLocation);
+      .filter(u => u.status === 'FREE' && u.availability === 'ON_SITE' && u.location === userLocation && u.user_type === jobtype);
 
 
     if (freeUsers.length === 0) {
