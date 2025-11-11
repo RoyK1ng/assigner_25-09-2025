@@ -14,7 +14,14 @@ import {ChatBubbleLeftIcon} from '@heroicons/react/24/outline';
 
 import { handleJobTypeChange } from '../hooks/oeDashboardFunctions';
 import UserQueue from './userComponents/UserQueue';
-
+import { 
+  startCaseTimer, 
+  stopCaseTimer, 
+  checkAndStartTimers,
+  formatTime 
+} from '../hooks/oeDashboardFunctions';
+import { CaseTimer } from './CaseTimer';
+import { useCaseTimer } from '../hooks/useCaseTimer';
 
 
 export function UserDashboard() {
@@ -274,6 +281,7 @@ const casesTwoDaysOut = casesQueue.filter(case_ => {
   return installDate >= today && installDate <= twoDaysFromNow;
 });
 
+// En el useEffect que llama a fetchAssignedCases, agregar:
 useEffect(() => {
   const initializeData = async () => {
     await fetchUserData();
@@ -286,9 +294,11 @@ useEffect(() => {
       if (data) {
         setPrevCaseCount(data.length);
         setCases(data);
+        
+        // ✅ NUEVO: Verificar y iniciar timers automáticamente
+        await checkAndStartTimers(user.id);
       }
     }
-    // Cargar tags
     await fetchAllTags();
     if (user?.id) {
       await fetchUserTags(user.id);
@@ -594,18 +604,28 @@ useEffect(() => {
   
   const updateCaseStatus = async (caseId: string, newStatus: string) => {
   try {
+    // Obtener el caso actual
+    const currentCase = cases.find(c => c.id === caseId);
+    
+    // Si el caso está cambiando a BUILT, APPROVED o OE COST, detener el timer
+    if (['BUILT', 'APPROVED', 'OE COST'].includes(newStatus) && currentCase) {
+      await stopCaseTimer(caseId, user?.id || currentCase.assigned_to);
+    }
+
     const { error: caseError } = await supabase
       .from('cases')
       .update({
         status: newStatus,
-        completed_at: newStatus === 'BUILT' || newStatus === 'APPROVED' || newStatus === 'OE COST'  ? new Date().toISOString() : null,
+        completed_at: ['BUILT', 'APPROVED', 'OE COST'].includes(newStatus) 
+          ? new Date().toISOString() 
+          : null,
       })
       .eq('id', caseId);
 
     if (caseError) {
       setError(caseError.message);
     } else {
-      await fetchData(); // Refrescar los datos después de actualizar el estado
+      await fetchData();
     }
   } catch (err) {
     console.error('Error updating case status:', err);
@@ -1124,6 +1144,9 @@ const inspectionCases = cases.filter(
         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Assigned At
         </th>
+         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+      Timer
+    </th>
         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Note
         </th>
@@ -1220,6 +1243,14 @@ const inspectionCases = cases.filter(
             })}
           </td>
 
+
+              {/* ✅ NUEVA CELDA CON TIMER */}
+  <td className="px-3 py-4 whitespace-nowrap">
+    <CaseTimer 
+      timerStartedAt={case_.timer_started_at}
+      timeTakenSeconds={case_.time_taken_seconds}
+    />
+  </td>
 
 
           {/* Botón para ver la nota en un modal */}

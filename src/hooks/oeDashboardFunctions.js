@@ -832,13 +832,34 @@ export const handleInstallDateChange = async (date, caseId, setInstallDates) => 
   }
 };
 
+
+//////////
+// NEW UPDATED
+
 export const updateCaseStatus = async (caseId, newStatus, setError, fetchData) => {
   try {
+    // Obtener el caso actual
+    const { data: currentCase, error: fetchError } = await supabase
+      .from('cases')
+      .select('status, timer_started_at, assigned_to')
+      .eq('id', caseId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Si el caso está cambiando a BUILT, APPROVED o OE COST, detener el timer
+    if (['BUILT', 'APPROVED', 'OE COST'].includes(newStatus)) {
+      await stopCaseTimer(caseId, currentCase.assigned_to || userId);
+    }
+
+    // Actualizar el estado del caso
     const { error: caseError } = await supabase
       .from('cases')
       .update({
         status: newStatus,
-        completed_at: newStatus === 'BUILT' || newStatus === 'APPROVED' || newStatus === 'OE COST' ? new Date().toISOString() : null,
+        completed_at: ['BUILT', 'APPROVED', 'OE COST'].includes(newStatus) 
+          ? new Date().toISOString() 
+          : null,
       })
       .eq('id', caseId);
 
@@ -852,6 +873,9 @@ export const updateCaseStatus = async (caseId, newStatus, setError, fetchData) =
     setError('Error updating case status');
   }
 };
+
+//////////
+// NEW UPDATED
 
 export const findCase = async (e, finder, setFinder, users, setErrorMessage) => {
   e.preventDefault();
@@ -893,4 +917,177 @@ export const findCase = async (e, finder, setFinder, users, setErrorMessage) => 
 
   setFinder('');
 };
+
+
+
+////////////////////// NEW UPDATED 
+
+
+
+
+// Función para iniciar el timer de un caso
+export const startCaseTimer = async (caseId, userId) => {
+  try {
+    const now = new Date().toISOString();
+    
+    // Actualizar el caso con el tiempo de inicio
+    const { error: caseError } = await supabase
+      .from('cases')
+      .update({ 
+        timer_started_at: now 
+      })
+      .eq('id', caseId);
+
+    if (caseError) throw caseError;
+
+    // Actualizar el usuario con el caso activo
+    const { error: userError } = await supabase
+      .from('users')
+      .update({ 
+        active_timer_case_id: caseId 
+      })
+      .eq('id', userId);
+
+    if (userError) throw userError;
+
+    console.log(`Timer started for case ${caseId}`);
+  } catch (err) {
+    console.error('Error starting case timer:', err);
+  }
+};
+
+
+
+// Función para detener el timer y calcular el tiempo
+export const stopCaseTimer = async (caseId, userId) => {
+  try {
+    // Obtener el caso para ver cuándo empezó
+    const { data: caseData, error: fetchError } = await supabase
+      .from('cases')
+      .select('timer_started_at')
+      .eq('id', caseId)
+      .single();
+
+    if (fetchError) throw fetchError;
+    if (!caseData.timer_started_at) {
+      console.log('Case timer was not started');
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const startTime = new Date(caseData.timer_started_at);
+    const endTime = new Date(now);
+    const timeTakenSeconds = Math.floor((endTime - startTime) / 1000);
+
+    // Actualizar el caso con el tiempo completado
+    const { error: caseError } = await supabase
+      .from('cases')
+      .update({ 
+        timer_completed_at: now,
+        time_taken_seconds: timeTakenSeconds
+      })
+      .eq('id', caseId);
+
+    if (caseError) throw caseError;
+
+    // Obtener todos los casos completados del usuario para calcular el promedio
+    const { data: userCases, error: casesError } = await supabase
+      .from('cases')
+      .select('time_taken_seconds')
+      .eq('assigned_to', userId)
+      .not('time_taken_seconds', 'is', null);
+
+    if (casesError) throw casesError;
+
+    // Calcular el promedio
+    const totalSeconds = userCases.reduce((sum, c) => sum + (c.time_taken_seconds || 0), 0);
+    const averageSeconds = userCases.length > 0 ? Math.floor(totalSeconds / userCases.length) : 0;
+
+    // Actualizar las estadísticas del usuario
+    const { error: userError } = await supabase
+      .from('users')
+      .update({ 
+        average_case_time_seconds: averageSeconds,
+        total_cases_timed: userCases.length,
+        active_timer_case_id: null
+      })
+      .eq('id', userId);
+
+    if (userError) throw userError;
+
+    // Buscar el siguiente caso en QUEUE para iniciar su timer
+    const { data: nextCase, error: nextError } = await supabase
+      .from('cases')
+      .select('id')
+      .eq('assigned_to', userId)
+      .eq('status', 'QUEUE')
+      .is('timer_started_at', null)
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (!nextError && nextCase && nextCase.length > 0) {
+      await startCaseTimer(nextCase[0].id, userId);
+    }
+
+    console.log(`Timer stopped for case ${caseId}. Time taken: ${timeTakenSeconds}s`);
+  } catch (err) {
+    console.error('Error stopping case timer:', err);
+  }
+};
+
+
+// Función para formatear segundos a formato legible
+export const formatTime = (seconds) => {
+  if (!seconds || seconds === 0) return '0s';
+  
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+};
+
+
+// Función para verificar y iniciar timers automáticamente
+export const checkAndStartTimers = async (userId) => {
+  try {
+    // Verificar si el usuario tiene un caso activo con timer
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('active_timer_case_id')
+      .eq('id', userId)
+      .single();
+
+    if (userError) throw userError;
+
+    // Si ya tiene un timer activo, no hacer nada
+    if (userData.active_timer_case_id) {
+      return;
+    }
+
+    // Buscar el primer caso en QUEUE sin timer iniciado
+    const { data: nextCase, error: caseError } = await supabase
+      .from('cases')
+      .select('id')
+      .eq('assigned_to', userId)
+      .eq('status', 'QUEUE')
+      .is('timer_started_at', null)
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    if (caseError) throw caseError;
+
+    // Si hay un caso disponible, iniciar su timer
+    if (nextCase && nextCase.length > 0) {
+      await startCaseTimer(nextCase[0].id, userId);
+    }
+  } catch (err) {
+    console.error('Error checking and starting timers:', err);
+  }
+};
+
+
+
 
