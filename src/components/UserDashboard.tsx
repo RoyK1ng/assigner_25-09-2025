@@ -13,6 +13,7 @@ import { status } from '../db/db';
 import {ChatBubbleLeftIcon} from '@heroicons/react/24/outline';
 
 import { handleJobTypeChange } from '../hooks/oeDashboardFunctions';
+import UserQueue from './userComponents/UserQueue';
 
 
 
@@ -53,6 +54,8 @@ const [newUserTagColor, setNewUserTagColor] = useState("#007bff");
 const [showAddCaseTagModal, setShowAddCaseTagModal] = useState(false);
 const [selectedCaseForTag, setSelectedCaseForTag] = useState<string | null>(null);
 const [tagFilter, setTagFilter] = useState('');
+const [myQueue, setMyQueue] = useState<Case[]>([]);
+
 
 // Cargar todos los tags disponibles
 const fetchAllTags = async () => {
@@ -186,6 +189,26 @@ const removeTagFromCase = async (caseId: string, tagId: string) => {
     console.error('Error inesperado:', err);
   }
 };
+
+
+// Si lo pones en UserDashboard.tsx, agrégalo antes del return:
+const timeSince = (dateString: string): string => {
+  const now = new Date();
+  const updatedAt = new Date(dateString);
+  const seconds = Math.floor((now.getTime() - updatedAt.getTime()) / 1000);
+
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  const hrs = Math.floor(mins / 60);
+  const days = Math.floor(hrs / 24);
+
+  if (days > 0) return `${days}d ${hrs % 24}h`;
+  if (hrs > 0) return `${hrs}h ${mins % 60}m`;
+  if (mins > 0) return `${mins}m ${secs}s`;
+  return `${seconds}s`;
+};
+
+
 
 
   // Función para abrir el modal de notas
@@ -365,15 +388,21 @@ useEffect(() => {
         );
       }
 
+      // ✅ Separar casos PENDING (queue personal) de los demás
+      const queueCases = filteredCases.filter(c => c.status === 'QUEUE');
+      
+
+      setMyQueue(queueCases);
+      setCases(filteredCases);
+      setPrevCaseCount(filteredCases.length);
+
+      // Notificación solo si hay nuevos casos
       if (filteredCases.length > prevCaseCount && prevCaseCount > 0) {
-        setNewCaseMessage('¡Tienes un nuevo caso asignado!');
-        triggerNotification('¡Tienes un nuevo caso asignado!');
+        setNewCaseMessage('¡Tienes un nuevo caso en tu queue!');
+        triggerNotification('¡Tienes un nuevo caso en tu queue!');
       } else {
         setNewCaseMessage(null);
       }
-
-      setCases(filteredCases);
-      setPrevCaseCount(filteredCases.length);
     }
   } catch (err) {
     console.error('Error fetching cases:', err);
@@ -869,17 +898,20 @@ const inspectionCases = cases.filter(
             {user?.location === 'SOUTH' ? 'SOUTH' : 'NORTH'}
         </button>
 
-    <button
-  onClick={toggleStatus}
-  className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md shadow-sm transition-all duration-200 
-    ${user?.status === 'FREE' 
-      ? 'bg-green-500 hover:bg-green-600 text-white' 
-      : 'bg-red-500 hover:bg-red-600 text-white'}
-  `}
->
-  <span className="inline-block w-2 h-2 rounded-full bg-green-200"></span>
-  {user?.status || 'FREE'}
-</button>
+
+            <span
+          
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-md shadow-sm transition-all duration-200 
+            ${user?.status === 'FREE' 
+              ? 'bg-green-500 hover:bg-green-600 text-white' 
+              : 'bg-red-500 hover:bg-red-600 text-white'}
+          `}
+        >
+          <span className="inline-block w-2 h-2 rounded-full bg-green-200"></span>
+          {user?.status || 'FREE'}
+        </span>
+        
+
     <h2 className="text-lg font-bold flex items-center">
       <UserCheck className="mr-2" />
       Welcome, {user?.username || 'User'}
@@ -1229,7 +1261,7 @@ const inspectionCases = cases.filter(
             >
                <option value="">Select Status</option>
                {status
-               .filter(status => status.name !== "DELETED" && ["BUILT", "PENDING", "VOID"].includes(status.name))
+               .filter(status => status.name !== "DELETED" && ["BUILT", "PENDING", "VOID", "QUEUE"].includes(status.name))
                .map((status) => (
                  <option key={status.id} value={status.name}>
                    {status.name}
@@ -1492,6 +1524,15 @@ const inspectionCases = cases.filter(
         );
       })}
   </div>
+
+      <UserQueue
+      myQueue={myQueue}
+      updateCaseStatus={updateCaseStatus}
+      handleInputChange={handleInputChange}
+      handleJobTypeChange={handleJobTypeChange}
+      timeSince={timeSince}
+    />
+  
 </div>
 
 

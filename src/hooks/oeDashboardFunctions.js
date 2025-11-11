@@ -387,13 +387,23 @@ export const fetchUsers = async (setUsers, userType) => {
       .lt('created_at', tomorrow.toISOString())
       .eq('status', 'PENDING');
 
+    //casos en queue
+    const { data: dailyQueueCases } = await supabase
+      .from('cases')
+      .select('*')
+      .gte('created_at', today.toISOString())
+      .lt('created_at', tomorrow.toISOString())
+      .eq('status', 'QUEUE');
+
     if (usersData) {
       const builtCounts = {};
       const pendingCounts = {};
+      const queueCases = {};
 
       usersData.forEach(user => {
         builtCounts[user.id] = 0;
         pendingCounts[user.id] = 0;
+        queueCases[user.id] = 0;
       });
 
       // Contar BUILT/APPROVED/OE COST
@@ -412,12 +422,22 @@ export const fetchUsers = async (setUsers, userType) => {
         }
       });
 
+      dailyQueueCases?.forEach(case_ => {
+        
+        if (case_.assigned_to) {
+          queueCases[case_.assigned_to] += 1;
+        }
+      });
+
+
+
       // Agregar ambos conteos al usuario
       const usersWithCounts = usersData.map(user => ({
         ...user,
         casesPerDay: {
           built: builtCounts[user.id],
-          pending: pendingCounts[user.id]
+          pending: pendingCounts[user.id],
+          queue: queueCases[user.id]
         }
       }));
 
@@ -546,7 +566,7 @@ export const assignCase = async (e, title, location, market, caseInfo, workOrder
         install_date: installDate ? installDate.toISOString().split("T")[0] : null,
         assigned_to: assignedUser,
         scheduled_by: currentUser.email.split("@")[0],
-        status: 'PENDING',
+        status: 'QUEUE',
         case_type: jobtype,
         location: userLocation
       }

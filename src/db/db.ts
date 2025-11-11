@@ -18,7 +18,8 @@ export const status = [
   { name: "DUPLICATED", id: 17, colorMap: "bg-blue-500 text-black ",                        colorStatus: "bg-blue-600 text-black hover:bg-yellow-800" },
   { name: "DELETED", id: 18, colorMap: "bg-red-600 text-black hover:bg-red-800",            colorStatus: "bg-red-700 text-black" },
   { name: "NOT REFERRAL", id: 19, colorMap: "bg-orange-300 text-black",                     colorStatus: "bg-orange-400 text-black" },
-  { name: "3 DAYS OUT", id: 20, colorMap: "bg-orange-300 text-black",                       colorStatus: "bg-orange-400 text-black" }
+  { name: "3 DAYS OUT", id: 20, colorMap: "bg-orange-300 text-black",                       colorStatus: "bg-orange-400 text-black" },
+  { name: "QUEUE", id: 21, colorMap: "bg-orange-300 text-black",                       colorStatus: "bg-orange-400 text-black" }
 ];
 
 

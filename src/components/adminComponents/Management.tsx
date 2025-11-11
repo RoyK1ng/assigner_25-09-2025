@@ -97,6 +97,7 @@ export const Management = ({
                               //const today = new Date().toLocaleDateString();
                               const casesBuilt = (user.casesPerDay && user.casesPerDay.built) || 0;
                               const casesPending = (user.casesPerDay && user.casesPerDay.pending) || 0;
+                              const casesQueue = (user.casesPerDay && user.casesPerDay.queue) || 0;
                               
                               const text = "text-black"
                               function colorbg() {
@@ -129,10 +130,38 @@ export const Management = ({
                                         </div>
 
                                         
+
+                                          <div className={`flex items-center text-xs font-bold text-gray-800 bg-yellow-200/70  py-0.5 px-1 rounded mb-1 top-20 right-2 absolute`}>
+                                                          <div className="text-xs text-black mr-1">Queue</div>
+
+                                            <svg
+                                              xmlns="http://www.w3.org/2000/svg"
+                                              className="h-4 w-4"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                                              />
+                                            </svg>
+                                            
+                                        <span className="font-bold ml-1 text-black">{casesQueue ||0}</span>
+                                        </div>
+
+                                        
                                         </>)}
-                                        <div className={`flex top-2 right-2 absolute items-center text-xs text-gray-600 ${colorbg()} py-0.5 rounded-full mb-1`}>
+
+                                        
+                                        
+                                          
+                                        <div className={`flex top-2 right-2 absolute items-center text-xs text-blue-500/70 ${colorbg()} py-0.5 rounded-full mb-1`}>
                                           <CalendarDays className="w-4 h-4" />
                                            <span className="font-bold ml-1">{user.casesinmonth ||0}</span>
+                                           
                                         </div>
                                         
                                       </div>
